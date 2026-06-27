@@ -34,7 +34,7 @@ export default function MessageInput({
 };
   
   return (
-    <div className="flex gap-2 rounded-full bg-neutral-800 p-2.5 w-[90%]">
+    <div className="flex gap-2 rounded-full bg-neutral-800 p-2.5 w-[90%] mb-2.5">
       <input
         value={text}
         onChange={(e) =>

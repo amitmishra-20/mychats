@@ -4,8 +4,10 @@ import { useRef, useState } from "react";
 import { Message } from "@/types/chat";
 import MessageInput from "./messageinput";
 import MessageList from "./messagelist";
+import { TypewriterEffect } from "@/components/ui/typewriter-effect";
 
 export default function ChatWindow() {
+   const words = [{text:"what's"},{text:"on"},{text:"your"},{text:"mind"},{text:"today?" ,  className:"text-yellow-400 dark:text-yellow-400"}];
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -40,7 +42,7 @@ export default function ChatWindow() {
 
     const updatedMessages = [...messages, newMessage];
 
-    setMessages(updatedMessages);
+    setMessages(updatedMessages.slice(-20));
     setIsLoading(true);
     const result = await sendMessage(updatedMessages, controller.signal);
     const aiMessageId = crypto.randomUUID();
@@ -111,7 +113,7 @@ export default function ChatWindow() {
   return (
     <section className="flex-1 flex flex-col overflow-hidden justify-center items-center bg-neutral-900 m-2.5 rounded-lg">
       {messages.length===0?
-      <h1 className="text-6xl text-center mb-5 ">Whats on your Mind Today?</h1>:
+      <TypewriterEffect className="text-6xl text-center mb-5 " words={words} cursorClassName="bg-yellow-400 dark:bg-yellow-400" />:
       <MessageList messages={messages} isLoading={isLoading} />
       }
       <MessageInput
