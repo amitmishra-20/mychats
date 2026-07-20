@@ -19,7 +19,7 @@ User asks a question
        ↓
 Question is embedded → cosine similarity search → top 3 chunks
        ↓
-Chunks injected as context → Llama 3.3 70B generates a streamed answer
+Chunks injected as context → Gemma 4 31B generates a streamed answer
 ```
 
 ## Tech Stack
@@ -27,7 +27,7 @@ Chunks injected as context → Llama 3.3 70B generates a streamed answer
 | Layer | Technology |
 |-------|-----------|
 | Framework | Next.js 16 (App Router, React 19) |
-| AI (Chat) | OpenRouter — `meta-llama/llama-3.3-70b-instruct:free` |
+| AI (Chat) | OpenRouter — `google/gemma-4-31b-it:free` |
 | Embeddings | OpenRouter — `openai/text-embedding-3-small` (768 dimensions) |
 | Database | Neon PostgreSQL + pgvector (HNSW index) |
 | PDF Parsing | pdfjs-dist |
