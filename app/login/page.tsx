@@ -114,7 +114,7 @@ export default function LoginPage() {
               className="w-full py-2.5 rounded-lg border border-border bg-secondary text-foreground font-medium text-sm hover:bg-background transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isDummyLoading && <Loader2 size={16} className="animate-spin" />}
-              Login as Interviewer
+              Login as Test User
             </button>
           </>
         )}
