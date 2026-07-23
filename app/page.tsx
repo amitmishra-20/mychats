@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useCallback, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import ChatWindow from "@/components/chat/chatwindow";
 import Sidebar from "@/components/chat/sidebar";
+import { useAuth } from "@/components/auth/authprovider";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 const emptySubscribe = () => () => {};
 
@@ -21,13 +25,21 @@ function getIsDesktop(): boolean {
 }
 
 export default function Home() {
-  // Hydration-safe reads from localStorage
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   const savedDocId = useSyncExternalStore(emptySubscribe, getSavedDocId, () => null);
   const isDesktop = useSyncExternalStore(emptySubscribe, getIsDesktop, () => true);
 
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(savedDocId);
   const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
 
   const handleSelectDocument = useCallback((id: string | null) => {
     setSelectedDocumentId(id);
@@ -58,6 +70,18 @@ export default function Home() {
 
   const handleCloseSidebar = useCallback(() => setSidebarOpen(false), []);
   const handleToggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);
+
+  if (loading) {
+    return (
+      <main className="h-screen flex items-center justify-center bg-background">
+        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <main className="h-screen flex bg-background text-foreground overflow-hidden">

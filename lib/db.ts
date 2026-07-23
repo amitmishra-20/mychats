@@ -21,6 +21,20 @@ export async function ensureDatabase() {
   await sql`CREATE EXTENSION IF NOT EXISTS vector`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      role TEXT DEFAULT 'user',
+      token_version INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
@@ -29,9 +43,14 @@ export async function ensureDatabase() {
       file_name TEXT NOT NULL,
       chunk_index INTEGER NOT NULL,
       total_chunks INTEGER NOT NULL,
+      user_id TEXT,
+      is_shared BOOLEAN DEFAULT false,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `;
+
+  await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS user_id TEXT`;
+  await sql`ALTER TABLE documents ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT false`;
 
   await sql`
     CREATE INDEX IF NOT EXISTS documents_embedding_idx
@@ -41,6 +60,11 @@ export async function ensureDatabase() {
   await sql`
     CREATE INDEX IF NOT EXISTS documents_document_id_idx
     ON documents (document_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS documents_user_id_idx
+    ON documents (user_id)
   `;
 
   dbReady = true;

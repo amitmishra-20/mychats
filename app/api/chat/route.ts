@@ -1,7 +1,8 @@
 import { generateResponse } from "@/services/ai";
 import { embedText } from "@/services/embeddings";
-import { searchChunks, ensureDatabase } from "@/lib/db";
+import { searchChunks, sql, ensureDatabase } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getSessionUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { Message } from "@/types/chat";
 
@@ -27,6 +28,11 @@ function validateMessages(messages: unknown): messages is Message[] {
 
 export async function POST(req: Request) {
   try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const rateLimit = await checkRateLimit("chat");
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil(rateLimit.resetMs / 1000);
@@ -64,6 +70,20 @@ export async function POST(req: Request) {
     let context: string | undefined;
 
     if (documentId) {
+      // Verify user has access to this document
+      const accessCheck = await sql`
+        SELECT document_id FROM documents
+        WHERE document_id = ${documentId}
+        AND (user_id = ${user.id} OR is_shared = true)
+        LIMIT 1
+      `;
+      if (accessCheck.length === 0) {
+        return NextResponse.json(
+          { error: "You don't have access to this document" },
+          { status: 403 }
+        );
+      }
+
       const lastUserMessage = messages[messages.length - 1]?.content || "";
 
       if (lastUserMessage) {

@@ -119,9 +119,6 @@ export default function Sidebar({
             </div>
 
             <div className="flex-1 overflow-auto px-4 py-3">
-              <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">
-                Your Documents
-              </p>
               <DocumentList
                 selectedDocumentId={selectedDocumentId}
                 onSelect={onSelectDocument}

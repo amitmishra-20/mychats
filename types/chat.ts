@@ -18,10 +18,18 @@ export interface Document {
   file_name: string;
   total_chunks: number;
   uploaded_at: string;
+  is_shared?: boolean;
 }
 
 export interface CodeBlockProps {
   language: string;
   code: string;
   children: React.ReactNode;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
 }

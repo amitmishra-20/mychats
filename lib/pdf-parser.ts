@@ -90,6 +90,5 @@ export function chunkText(
   if (currentChunk.trim()) {
     chunks.push(currentChunk.trim());
   }
-
   return chunks;
 }

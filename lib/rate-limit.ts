@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { randomUUID } from "crypto";
+import { getSessionUser } from "./auth";
 
 const RATE_LIMITS = {
   chat: { max: 20, windowMs: 60 * 60 * 1000 },
@@ -16,10 +15,6 @@ interface SessionEntry {
 }
 
 const store = new Map<string, SessionEntry>();
-
-function getOrCreateSession(): string {
-  return randomUUID();
-}
 
 function getEntry(sessionId: string): SessionEntry {
   const now = Date.now();
@@ -51,20 +46,12 @@ function getEntry(sessionId: string): SessionEntry {
 export async function checkRateLimit(
   action: RateLimitAction
 ): Promise<{ allowed: boolean; remaining: number; resetMs: number }> {
-  const cookieStore = await cookies();
-  let sessionId = cookieStore.get("rl_session")?.value;
-
-  if (!sessionId) {
-    sessionId = getOrCreateSession();
-    cookieStore.set("rl_session", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24,
-      path: "/",
-    });
+  const user = await getSessionUser();
+  if (!user) {
+    return { allowed: false, remaining: 0, resetMs: 0 };
   }
 
+  const sessionId = user.id;
   const entry = getEntry(sessionId);
   const limit = RATE_LIMITS[action];
 

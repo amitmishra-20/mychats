@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import ErrorBoundary from "@/components/ui/error-boundary";
+import { AuthProvider } from "@/components/auth/authprovider";
+import UserMenu from "@/components/auth/user-menu";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,7 +33,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <AuthProvider>
+          <ErrorBoundary>
+            <UserMenu />
+            {children}
+          </ErrorBoundary>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

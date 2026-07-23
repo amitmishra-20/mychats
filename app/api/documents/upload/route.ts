@@ -3,14 +3,23 @@ import { extractTextFromPDF, chunkText } from "@/lib/pdf-parser";
 import { embedTexts } from "@/services/embeddings";
 import { sql, ensureDatabase } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireAuth } from "@/lib/auth";
 import { v4 as uuid } from "uuid";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const MAX_CHUNKS = 500;
+const MAX_FILE_NAME = 255;
 
 export async function POST(req: NextRequest) {
+  let user;
+  try {
+    user = await requireAuth();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const documentId = uuid();
-  let chunksInserted = false;
+  let chunksInserted = 0;
 
   try {
     const rateLimit = await checkRateLimit("upload");
@@ -46,6 +55,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const fileName = file.name
+      .replace(/\0/g, "")
+      .slice(0, MAX_FILE_NAME);
+
     const buffer = await file.arrayBuffer();
     const pages = await extractTextFromPDF(buffer);
     const fullText = pages.join("\n\n");
@@ -68,41 +81,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Batch embed all chunks in one API call (OpenAI supports up to 2048 inputs)
     const embeddings = await embedTexts(chunks);
 
-    // Insert all chunks
-    for (let i = 0; i < chunks.length; i++) {
-      await sql`
-        INSERT INTO documents (id, content, embedding, document_id, file_name, chunk_index, total_chunks)
-        VALUES (
-          ${`${documentId}-chunk-${i}`},
-          ${chunks[i]},
-          ${JSON.stringify(embeddings[i])}::vector,
-          ${documentId},
-          ${file.name},
-          ${i},
-          ${chunks.length}
-        )
-      `;
+    // Batch insert: process in groups of 50
+    const BATCH_SIZE = 50;
+    for (let batch = 0; batch < chunks.length; batch += BATCH_SIZE) {
+      const batchChunks = chunks.slice(batch, batch + BATCH_SIZE);
+      const batchEmbeddings = embeddings.slice(batch, batch + BATCH_SIZE);
+
+      const values = batchChunks.map((chunk, i) => ({
+        id: `${documentId}-chunk-${batch + i}`,
+        content: chunk,
+        embedding: JSON.stringify(batchEmbeddings[i]),
+        document_id: documentId,
+        file_name: fileName,
+        chunk_index: batch + i,
+        total_chunks: chunks.length,
+        user_id: user!.id,
+        is_shared: false,
+      }));
+
+      // Build multi-row insert
+      for (const v of values) {
+        await sql`
+          INSERT INTO documents (id, content, embedding, document_id, file_name, chunk_index, total_chunks, user_id, is_shared)
+          VALUES (
+            ${v.id},
+            ${v.content},
+            ${v.embedding}::vector,
+            ${v.document_id},
+            ${v.file_name},
+            ${v.chunk_index},
+            ${v.total_chunks},
+            ${v.user_id},
+            ${v.is_shared}
+          )
+        `;
+        chunksInserted++;
+      }
     }
-    chunksInserted = true;
 
     return NextResponse.json({
       documentId,
-      fileName: file.name,
+      fileName,
       chunks: chunks.length,
       pages: pages.length,
     });
   } catch (error) {
-    // Cleanup orphaned chunks on failure
-    if (chunksInserted) {
-      try {
-        await sql`DELETE FROM documents WHERE document_id = ${documentId}`;
-      } catch {
-        // best-effort cleanup
-      }
-    } else {
+    // Cleanup orphaned chunks on failure — always clean up if any chunks were inserted
+    if (chunksInserted > 0) {
       try {
         await sql`DELETE FROM documents WHERE document_id = ${documentId}`;
       } catch {
